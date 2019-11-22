@@ -8,7 +8,12 @@ import {
     REGISTER_VOTE_SUCCESS,
     GET_FRIENDS_POLLS_SUCCESS,
     CHANGE_FRIEND_STATUS_SUCCESS,
-    USER_DATA_LOADING
+    USER_DATA_LOADING,
+    UPDATE_VOTES,
+    UPDATE_USER_DATA,
+    TOGGLE_SNACKBAR,
+    RESET_FRIENDS_POLLS,
+    TOGGLE_DRAWER
 } from "./constants.js";
 
 const userInitialState = {
@@ -20,7 +25,8 @@ const userInitialState = {
     polls: [],
     friends: [],
     error: "",
-    isLoading: false
+    isLoading: false,
+    online: false
 };
 
 const usersInitialState = {
@@ -31,6 +37,16 @@ const usersInitialState = {
 const friendsPollsInitialState = {
     friendsPolls: [],
     error: ""
+};
+
+const snackbarInitialState = {
+    snackbarIsOpen: false,
+    snackbarMessage: ""
+};
+
+const friendsDrawerInitialState = {
+    drawerIsOpen: true,
+    mobileDrawerIsOpen: false
 };
 
 export const userReducer = (state = userInitialState, action = {}) => {
@@ -49,6 +65,7 @@ export const userReducer = (state = userInitialState, action = {}) => {
                     lists: action.response.data.lists,
                     avatar: action.response.data.avatar,
                     friends: action.response.data.friends,
+                    online: action.response.data.online,
                     error: "",
                     isLoading: false
                 });
@@ -81,7 +98,8 @@ export const userReducer = (state = userInitialState, action = {}) => {
                     const newFriend = {
                         _id: action.response.data.friendId,
                         name: action.response.data.name,
-                        avatar: action.response.data.avatar
+                        avatar: action.response.data.avatar,
+                        online: action.response.data.online
                     };
                     return Object.assign({}, state, {
                         friends: [...state.friends, newFriend]
@@ -105,9 +123,30 @@ export const userReducer = (state = userInitialState, action = {}) => {
                     });
                 }
             }
+        case UPDATE_VOTES:
+            const updatedPolls = state.polls.map(poll => {
+                // Find the poll with the matching pollId
+                if (poll._id === action.pollId) {
+                    // Return a new object
+                    return {
+                        ...poll, // copy the existing poll
+                        votes: action.votes // replace the votes array
+                    };
+                }
+
+                // Leave every other poll unchanged
+                return poll;
+            });
+
+            return Object.assign({}, state, { polls: updatedPolls });
 
         case LOGOUT:
             return userInitialState;
+
+        case UPDATE_USER_DATA:
+            return Object.assign({}, state, {
+                [action.target]: action.newData
+            });
         default:
             return state;
     }
@@ -142,6 +181,8 @@ export const usersReducer = (state = usersInitialState, action = {}) => {
 export const pollsReducer = (state = friendsPollsInitialState, action = {}) => {
     switch (action.type) {
         case GET_FRIENDS_POLLS_SUCCESS:
+            // Object.assign({}, friendsPollsInitialState);
+
             if (action.response.status === 200) {
                 return Object.assign({}, state, {
                     friendsPolls: action.response.data
@@ -179,6 +220,44 @@ export const pollsReducer = (state = friendsPollsInitialState, action = {}) => {
         case API_REQUEST_FAILURE:
             console.log("action.error: ", action.error);
             return Object.assign({}, state, { error: action.error });
+
+        case RESET_FRIENDS_POLLS:
+            return friendsPollsInitialState;
+
+        default:
+            return state;
+    }
+};
+
+export const snackbarReducer = (state = snackbarInitialState, action = {}) => {
+    switch (action.type) {
+        case TOGGLE_SNACKBAR:
+            if (action.action === "open") {
+                return Object.assign({}, state, {
+                    snackbarIsOpen: true,
+                    snackbarMessage: action.message
+                });
+            } else {
+                return Object.assign({}, state, {
+                    snackbarIsOpen: false,
+                    snackbarMessage: ""
+                });
+            }
+
+        default:
+            return state;
+    }
+};
+
+export const friendsDrawerReducer = (
+    state = friendsDrawerInitialState,
+    action = {}
+) => {
+    switch (action.type) {
+        case TOGGLE_DRAWER:
+            return Object.assign({}, state, {
+                [action.target]: !state[action.target]
+            });
 
         default:
             return state;

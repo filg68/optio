@@ -14,13 +14,14 @@ export async function updateAvatar(formData, cb) {
         });
 }
 
-export async function updateUserData(newData) {
+export async function updateUserData(newData, cb) {
     await axios
         .patch("/api/users", newData)
         .then(response => {
-            console.log(response.data);
+            cb(response);
         })
         .catch(err => {
             console.log(err);
+            cb(err);
         });
 }

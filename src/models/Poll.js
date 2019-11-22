@@ -30,8 +30,7 @@ const pollSchema = new mongoose.Schema(
                 type: Number
             }
         ],
-
-        expiresOn: Date
+        complete: { type: Boolean }
     },
     { timestamps: true }
 );

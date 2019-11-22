@@ -3,19 +3,16 @@ import axios from "axios";
 import AuthNavbar from "../components/AuthNavbar";
 import { withStyles } from "@material-ui/styles";
 import { authStyles } from "../styles/authStyles";
-import jwt_decode from "jwt-decode";
-import setAuthToken from "../utils/setAuthToken";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "../constants.js";
+import clsx from "clsx";
 
-import {
-    Button,
-    TextField,
-    Grid,
-    Typography,
-    Container,
-    FormHelperText,
-    Link
-} from "@material-ui/core";
+import Button from "@material-ui/core/Button";
+import TextField from "@material-ui/core/TextField";
+import Grid from "@material-ui/core/Grid";
+import Typography from "@material-ui/core/Typography";
+import Container from "@material-ui/core/Container";
+import FormHelperText from "@material-ui/core/FormHelperText";
+import Link from "@material-ui/core/Link";
 
 class Login extends Component {
     constructor(props) {
@@ -23,7 +20,7 @@ class Login extends Component {
         this.state = {
             email: "",
             password: "",
-            errors: ""
+            errors: {}
         };
     }
 
@@ -70,17 +67,7 @@ class Login extends Component {
                     // save token to localStorage
                     localStorage.setItem("jwtToken", token);
 
-                    // Set token to Auth header
-                    setAuthToken(token);
-
-                    // Decode token to get user data
-                    const decoded = jwt_decode(token);
-
-                    // Load current user
-                    this.props.loadUser(decoded.id);
-
-                    // Load all users:
-                    this.props.loadUsers(decoded.id);
+                    this.props.decodeTokenAndFetchData(token);
                 }
             })
             .catch(err => {
@@ -193,7 +180,10 @@ class Login extends Component {
                                         </Button>
                                         <Button
                                             onClick={this.demoLogin}
-                                            className={classes.btn}
+                                            className={clsx(
+                                                classes.btn,
+                                                classes.demoBtn
+                                            )}
                                             id="demoSubmitButton"
                                             size="large"
                                             type="submit"
@@ -201,12 +191,12 @@ class Login extends Component {
                                             color="secondary">
                                             Demo Login
                                         </Button>
-                                        <FormHelperText
-                                            error
-                                            id="submitButton-error-field">
-                                            {errors.error}
-                                        </FormHelperText>
                                     </div>
+                                    <FormHelperText
+                                        error
+                                        id="submitButton-error-field">
+                                        {errors.error}
+                                    </FormHelperText>
                                 </form>
                             </div>
                         </Container>

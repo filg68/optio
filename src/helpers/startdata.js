@@ -1,31 +1,5 @@
 //startdata.js
 
-export const usernames = [
-    "Alison Brown",
-    "Caroline Chapman",
-    "Dorothy Ferguson",
-    "Lisa Hudson",
-    "Rose Fraser",
-    "Peter Kelly",
-    "Richard Randall",
-    "William Avery",
-    "Jack Murray",
-    "Paul Newman"
-];
-
-export const avatars = [
-    "https://randomuser.me/api/portraits/women/2.jpg",
-    "https://randomuser.me/api/portraits/women/3.jpg",
-    "https://randomuser.me/api/portraits/women/4.jpg",
-    "https://randomuser.me/api/portraits/women/5.jpg",
-    "https://randomuser.me/api/portraits/women/6.jpg",
-    "https://randomuser.me/api/portraits/men/1.jpg",
-    "https://randomuser.me/api/portraits/men/2.jpg",
-    "https://randomuser.me/api/portraits/men/3.jpg",
-    "https://randomuser.me/api/portraits/men/4.jpg",
-    "https://randomuser.me/api/portraits/men/5.jpg"
-];
-
 export const pollTitles = [
     "Which pattern do you like?",
     "Where do you want to go?",

@@ -15,7 +15,8 @@ export async function createNewPoll(data) {
             title: data.title,
             userId: data.userId,
             sendToList: data.sendToList,
-            options: data.options
+            options: data.options,
+            complete: false
         });
         await newPoll.save();
 
@@ -24,7 +25,7 @@ export async function createNewPoll(data) {
             { _id: data.userId },
             { $push: { polls: newPoll._id } }
         );
-        return { status: 200, data: newPoll };
+        return { status: 200, newPoll };
     } catch (err) {
         console.log(err);
         return { status: 500, errors: "Unable to save poll images." };

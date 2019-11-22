@@ -45,7 +45,9 @@ router.post("/upload", function(req, res) {
                     options: response.result
                 };
                 createNewPoll(params)
-                    .then(response => res.status(200).json(response))
+                    .then(response => {
+                        res.status(200).json(response);
+                    })
                     .catch(err => res.status(500).json(err));
             } else if (req.body.target === TARGET_AVATAR) {
                 const params = {

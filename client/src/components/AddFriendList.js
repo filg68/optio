@@ -5,7 +5,6 @@ import { withStyles } from "@material-ui/core/styles";
 import {
     Button,
     IconButton,
-    Dialog,
     DialogContent,
     DialogActions,
     Divider,
@@ -21,6 +20,7 @@ import {
     Icon
 } from "@material-ui/core";
 import MuiDialogTitle from "@material-ui/core/DialogTitle";
+import { ResponsiveDialog } from "./ResponsiveDialog";
 
 const styles = theme => ({
     root: {
@@ -140,8 +140,18 @@ class AddFriendsList extends Component {
                 .post("/api/users/add_friend_list", newList)
                 .then(response => {
                     // add new list to Profile and close dialog:
-                    this.addNewList(response.data);
-                    this.closeDialog();
+                    if (response.data) {
+                        // add new list to Profile and close dialog:
+                        this.addNewList(response.data);
+
+                        // open snackbar with success message:
+                        this.props.toggleSnackbar({
+                            action: "open",
+                            message:
+                                "A new friend list was successfully created!"
+                        });
+                        this.closeDialog();
+                    }
                 })
                 .catch(err => {
                     console.log(err);
@@ -167,11 +177,13 @@ class AddFriendsList extends Component {
         newList.friends.forEach((id, i, array) => {
             const user = this.props.user.friends.find(user => user._id === id);
 
-            array[i] = {
-                _id: id,
-                name: user.name,
-                avatar: user.avatar
-            };
+            if (user) {
+                array[i] = {
+                    _id: id,
+                    name: user.name,
+                    avatar: user.avatar
+                };
+            }
         });
         this.props.addNewList(newList);
     };
@@ -202,9 +214,8 @@ class AddFriendsList extends Component {
                     size="medium">
                     Create list
                 </Button>
-                <Dialog
-                    fullWidth
-                    maxWidth="xs"
+
+                <ResponsiveDialog
                     onClose={this.closeDialog}
                     aria-labelledby="create-friend-list"
                     open={open}>
@@ -302,7 +313,7 @@ class AddFriendsList extends Component {
                             </Button>
                         </DialogActions>
                     </form>
-                </Dialog>
+                </ResponsiveDialog>
             </div>
         );
     }

@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import axios from "axios";
+import { socket } from "../utils/setSocketConnection";
 import Moment from "react-moment";
 import renderAvatar from "../utils/renderAvatar";
 import { Link as RouterLink } from "react-router-dom";
@@ -8,7 +8,7 @@ import { pollPageStyles } from "../styles/pollPageStyles";
 import { withStyles } from "@material-ui/core/styles";
 
 import AddPollDialog from "../components/AddPollDialog";
-import UserPanel from "../components/UserPanel";
+import { UserPanel } from "../components/UserPanel";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import Container from "@material-ui/core/Container";
 import Card from "@material-ui/core/Card";
@@ -35,28 +35,73 @@ class PollPage extends Component {
         super(props);
         this.state = {
             pollDialogIsOpen: false,
-            results: []
+            results: [],
+            votes: []
         };
     }
 
-    componentDidMount() {
-        // TODO: show results array updaing in real time
-        // get voting data on the poll from the database:
+    updateResults = results => {
+        // update state only if results have changed
+        if (this.state.results.length !== results.length) {
+            this.setState({ results });
+        }
+    };
+
+    updateVotes = newVotes => {
+        const { votes } = this.state;
+
+        // update state only if votes count has changed:
+        if (votes[0] !== newVotes[0] || votes[1] !== newVotes[1]) {
+            this.setState({ votes: newVotes });
+        }
+    };
+
+    fetchUpdatedResults = () => {
         const { _id } = this.props.location.state.poll;
-        axios
-            .get("/api/poll/results", {
-                params: {
-                    pollId: _id
-                }
-            })
-            .then(response => {
-                if (response.status === 200) {
-                    this.setState({ results: response.data.results });
-                }
-            })
-            .catch(error => {
-                console.log("Cannot get poll results: ", error);
+        socket.emit("initial_results", _id);
+    };
+
+    componentDidMount() {
+        const { _id } = this.props.location.state.poll;
+
+        if (socket) {
+            // Fire the initial_votes event to get initial votes count:
+            socket.emit("initial_votes", _id);
+
+            // Fire the initial_results event to get voting results:
+            socket.emit("initial_results", _id);
+
+            // When results are received, update state:
+            socket.on("update_results", this.updateResults);
+
+            // When votes count is received, update state:
+            socket.on("update_votes", data => {
+                if (data.pollId === _id) this.updateVotes(data.result);
             });
+
+            // Listen for results change event:
+            socket.on("results_changed", this.fetchUpdatedResults);
+
+            //  Listen for new vote registration event:
+            socket.on("votes_changed", data => {
+                // Update local state if change applies to current poll:
+                if (data.pollId === _id) {
+                    // update local state:
+                    this.updateVotes(data.newCounts);
+
+                    // update redux state to make new vote count available on Profile page:
+                    this.props.updateVotes(data.pollId, data.newCounts);
+                }
+            });
+        }
+    }
+
+    // Remove the listeners before unmounting in order to avoid addition of multiple listeners:
+    componentWillUnmount() {
+        socket.off("update_results");
+        socket.off("results_changed");
+        socket.off("update_votes");
+        socket.off("votes_changed");
     }
 
     togglePollDialog = () => {
@@ -64,10 +109,23 @@ class PollPage extends Component {
     };
 
     render() {
-        const { classes, user, users } = this.props;
+        const {
+            classes,
+            user,
+            users,
+            toggleSnackbar,
+            snackbarIsOpen,
+            snackbarMessage,
+            logOut,
+            updateUserDataInState,
+            toggleDrawer,
+            drawerIsOpen,
+            mobileDrawerIsOpen
+        } = this.props;
         const { poll, lists } = this.props.location.state;
-        const { results, pollDialogIsOpen } = this.state;
-        const votesCount = poll.votes[0] + poll.votes[1];
+        const { results, votes, pollDialogIsOpen } = this.state;
+        const listName = poll.sendToList.title;
+        const votesCount = votes[0] + votes[1];
 
         return (
             <div className={classes.root}>
@@ -75,8 +133,15 @@ class PollPage extends Component {
                 <UserPanel
                     user={user}
                     users={users}
-                    logOut={this.props.logOut}
+                    logOut={logOut}
                     togglePollDialog={this.togglePollDialog}
+                    updateUserDataInState={updateUserDataInState}
+                    toggleSnackbar={toggleSnackbar}
+                    snackbarIsOpen={snackbarIsOpen}
+                    snackbarMessage={snackbarMessage}
+                    toggleDrawer={toggleDrawer}
+                    drawerIsOpen={drawerIsOpen}
+                    mobileDrawerIsOpen={mobileDrawerIsOpen}
                 />
                 <AddPollDialog
                     userId={user._id}
@@ -85,6 +150,8 @@ class PollPage extends Component {
                     pollDialogIsOpen={pollDialogIsOpen}
                     hideButton={true}
                     addNewPoll={this.props.addNewPoll}
+                    toggleSnackbar={toggleSnackbar}
+                    snackbarIsOpen={snackbarIsOpen}
                 />
 
                 <main className={classes.main}>
@@ -115,8 +182,9 @@ class PollPage extends Component {
                                             <Typography variant="body2">
                                                 {votesCount || 0}{" "}
                                                 {votesCount === 1
-                                                    ? "answer"
-                                                    : "answers"}
+                                                    ? "answer "
+                                                    : "answers "}
+                                                from {listName}
                                             </Typography>
                                         }
                                     />
@@ -150,7 +218,7 @@ class PollPage extends Component {
                                                 <Icon>favorite</Icon>
                                             </IconButton>
                                             <Typography variant="body1">
-                                                {poll.votes[0] || 0}
+                                                {votes[0] || 0}
                                             </Typography>
                                         </div>
                                         <div className={classes.votes}>
@@ -162,7 +230,7 @@ class PollPage extends Component {
                                                 <Icon>favorite</Icon>
                                             </IconButton>
                                             <Typography variant="body1">
-                                                {poll.votes[1] || 0}
+                                                {votes[1] || 0}
                                             </Typography>
                                         </div>
                                     </CardActions>
@@ -178,44 +246,43 @@ class PollPage extends Component {
                                 />
                                 <List>
                                     {results &&
-                                        results.map(voter => {
+                                        results.map((voter, i) => {
                                             return (
-                                                <>
-                                                    <ListItem
-                                                        key={voter.userId}
-                                                        className={
-                                                            classes.boldTitle
-                                                        }>
-                                                        <ListItemAvatar>
-                                                            {renderAvatar(
-                                                                voter,
-                                                                classes
-                                                            )}
-                                                        </ListItemAvatar>
-                                                        <ListItemText
-                                                            primary={
-                                                                <Typography
-                                                                    className={
-                                                                        classes.listItemText
-                                                                    }
-                                                                    variant="subtitle1">
-                                                                    {voter.name}{" "}
-                                                                    voted
-                                                                </Typography>
-                                                            }
-                                                            secondary={
-                                                                <Moment fromNow>
-                                                                    {
-                                                                        voter.updatedAt
-                                                                    }
-                                                                </Moment>
-                                                            }
-                                                        />
+                                                <ListItem
+                                                    key={voter.userId}
+                                                    className={
+                                                        classes.listItem
+                                                    }>
+                                                    <ListItemAvatar>
+                                                        {renderAvatar(
+                                                            voter,
+                                                            classes
+                                                        )}
+                                                    </ListItemAvatar>
+                                                    <ListItemText
+                                                        primary={
+                                                            <Typography
+                                                                className={
+                                                                    classes.listItemText
+                                                                }
+                                                                variant="subtitle1">
+                                                                {voter.name}{" "}
+                                                                voted
+                                                            </Typography>
+                                                        }
+                                                        secondary={
+                                                            <Moment fromNow>
+                                                                {
+                                                                    voter.updatedAt
+                                                                }
+                                                            </Moment>
+                                                        }
+                                                    />
 
-                                                        <ListItemSecondaryAction>
-                                                            <Box
-                                                                style={{
-                                                                    backgroundImage: `url(
+                                                    <ListItemSecondaryAction>
+                                                        <Box
+                                                            style={{
+                                                                backgroundImage: `url(
                                                                 ${
                                                                     voter.option ===
                                                                     0
@@ -225,14 +292,12 @@ class PollPage extends Component {
                                                                               .options[1]
                                                                 }
                                                             )`
-                                                                }}
-                                                                className={
-                                                                    classes.thumbnail
-                                                                }></Box>
-                                                        </ListItemSecondaryAction>
-                                                    </ListItem>
-                                                    <Divider />
-                                                </>
+                                                            }}
+                                                            className={
+                                                                classes.thumbnail
+                                                            }></Box>
+                                                    </ListItemSecondaryAction>
+                                                </ListItem>
                                             );
                                         })}
                                 </List>

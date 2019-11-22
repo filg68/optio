@@ -1,5 +1,5 @@
 import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
+import { withStyles } from "@material-ui/core/styles";
 import { profileStyles } from "../styles/profileStyles";
 import {
     Card,
@@ -13,86 +13,125 @@ import {
     Icon,
     IconButton
 } from "@material-ui/core";
+import { socket } from "../utils/setSocketConnection";
 
-const useStyles = makeStyles(profileStyles);
+class FriendsPollCard extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            votes: [],
+            votedForOption: null
+        };
+    }
 
-function FriendsPollCard(props) {
-    const classes = useStyles();
-    const [hasVoted, setHasVoted] = React.useState(false);
-    const { poll } = props;
-    const votesCount = poll.votes[0] + poll.votes[1];
+    componentDidMount() {
+        const { _id } = this.props.poll;
 
-    const registerVote = option => {
+        // initialize votes array:
+        this.setState({ votes: this.props.poll.votes });
+
+        // listen to the new vote registration event:
+        socket.on("votes_changed", data => {
+            // if data change concerns this poll, update vote count:
+            if (data.pollId === _id) {
+                this.setState({ votes: data.newCounts });
+            }
+        });
+    }
+
+    componentWillUnmount() {
+        socket.off("votes_changed");
+    }
+
+    registerVote = option => {
         const dataToSend = {
-            pollId: poll._id,
-            userId: props.userId,
+            pollId: this.props.poll._id,
+            userId: this.props.userId,
             option
         };
-        props.registerVote(dataToSend);
-        setHasVoted(true);
+
+        // Emit new event to back-end:
+        socket.emit("register_vote", dataToSend);
+
+        this.setState({ votedForOption: option });
     };
 
-    return (
-        <Grid item key={poll._id} xs={12} md={6} lg={4}>
-            <Card className={classes.card}>
-                <CardHeader
-                    className={classes.pollCardHeader}
-                    title={
-                        <Typography
-                            component="h3"
-                            className={classes.pollTitle}>
-                            {poll.title}
-                        </Typography>
-                    }
-                    subheader={
-                        <Typography variant="body2">
-                            {votesCount || 0}{" "}
-                            {votesCount === 1 ? "answer" : "answers"}
-                        </Typography>
-                    }
-                />
-                <CardContent className={classes.cardContent}>
-                    <GridList cellHeight={180} className={classes.gridList}>
-                        <GridListTile key={1}>
-                            <img src={poll.options[0]} alt="First option" />
-                        </GridListTile>
-                        <GridListTile key={2}>
-                            <img src={poll.options[1]} alt="Second option" />
-                        </GridListTile>
-                    </GridList>
+    render() {
+        const { classes } = this.props;
+        const { title, options, id } = this.props.poll;
+        const { votes, votedForOption } = this.state;
+        const votesCount = votes[0] + votes[1];
 
-                    <CardActions className={classes.votesContainer}>
-                        <div className={classes.votes}>
-                            <IconButton
-                                disabled={hasVoted}
-                                onClick={() => registerVote(0)}
-                                className={classes.icon}
-                                aria-label="Votes for first image"
-                                component="span">
-                                <Icon>favorite</Icon>
-                            </IconButton>
-                            <Typography variant="body1">
-                                {poll.votes[0] || 0}
+        return (
+            <Grid item key={id} xs={12} md={6} lg={4}>
+                <Card className={classes.card}>
+                    <CardHeader
+                        className={classes.pollCardHeader}
+                        title={
+                            <Typography
+                                component="h3"
+                                className={classes.pollTitle}>
+                                {title}
                             </Typography>
-                        </div>
-                        <div className={classes.votes}>
-                            <IconButton
-                                disabled={hasVoted}
-                                onClick={() => registerVote(1)}
-                                className={classes.icon}
-                                aria-label="Votes for second image"
-                                component="span">
-                                <Icon>favorite</Icon>
-                            </IconButton>
-                            <Typography variant="body1">
-                                {poll.votes[1] || 0}
+                        }
+                        subheader={
+                            <Typography variant="body2">
+                                {votesCount || 0}{" "}
+                                {votesCount === 1 ? "answer" : "answers"}
                             </Typography>
-                        </div>
-                    </CardActions>
-                </CardContent>
-            </Card>
-        </Grid>
-    );
+                        }
+                    />
+                    <CardContent className={classes.cardContent}>
+                        <GridList cellHeight={180} className={classes.gridList}>
+                            <GridListTile key={1}>
+                                <img src={options[0]} alt="First option" />
+                            </GridListTile>
+                            <GridListTile key={2}>
+                                <img src={options[1]} alt="Second option" />
+                            </GridListTile>
+                        </GridList>
+
+                        <CardActions className={classes.votesContainer}>
+                            <div className={classes.votes}>
+                                <IconButton
+                                    disabled={votedForOption === 0}
+                                    onClick={() => this.registerVote(0)}
+                                    className={classes.icon}
+                                    aria-label="Votes for first image"
+                                    component="span">
+                                    {votedForOption === 0 ? (
+                                        <Icon>favorite</Icon>
+                                    ) : (
+                                        <Icon>favorite_border</Icon>
+                                    )}
+                                </IconButton>
+                                <Typography variant="body1">
+                                    {votes[0] || 0}
+                                </Typography>
+                            </div>
+                            <div className={classes.votes}>
+                                <IconButton
+                                    disabled={votedForOption === 1}
+                                    onClick={() => this.registerVote(1)}
+                                    className={classes.icon}
+                                    aria-label="Votes for second image"
+                                    component="span">
+                                    {votedForOption === 1 ? (
+                                        <Icon>favorite</Icon>
+                                    ) : (
+                                        <Icon>favorite_border</Icon>
+                                    )}
+                                </IconButton>
+                                <Typography variant="body1">
+                                    {votes[1] || 0}
+                                </Typography>
+                            </div>
+                        </CardActions>
+                    </CardContent>
+                </Card>
+            </Grid>
+        );
+    }
 }
 
-export default FriendsPollCard;
+export default withStyles(profileStyles)(FriendsPollCard);

@@ -5,6 +5,7 @@ const router = express.Router();
 
 // External Modules
 import { registerVote } from "../utils/voteModelUpdates";
+import { executeApiRequest } from "../utils/apiSupport";
 
 /**
  * @desc Registers or updates a users vote depending on whether or not a vote
@@ -13,18 +14,11 @@ import { registerVote } from "../utils/voteModelUpdates";
  */
 
 router.post("/vote", function(req, res) {
-    if (req.body.pollId === undefined) {
-        res.status(400).json({ error: "No data provided." });
-    } else {
-        registerVote(req.body.pollId, req.body.userId, req.body.option)
-            .then(result => {
-                res.status(200).json(result);
-            })
-            .catch(err => {
-                console.log("/api/poll/vote", err);
-                res.status(500).json({ error: "/api/poll/vote failure", err });
-            });
-    }
+    executeApiRequest(req, res, "/api/poll/vote", registerVote, [
+        req.body.pollId,
+        req.body.userId,
+        req.body.option
+    ]);
 });
 
 //PRIVATE FUNCTIONS

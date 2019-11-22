@@ -8,8 +8,13 @@ if (!process.env.ENV_LOADED) {
     require("dotenv").config();
 }
 
-// Packages used for uploading to S3
+// Packages & constants used for uploading to S3
 const AWS = require("aws-sdk");
+
+// Image manipulation package
+const sharp = require("sharp");
+const NEW_WIDTH = 300;
+const NEW_HEIGHT = 200;
 
 // Miscellaneous Packages
 const uuidv4 = require("uuid/v4");
@@ -27,8 +32,12 @@ export function filesToUpload(req, res) {
     files.forEach(fileName => {
         try {
             uploadsPromised.push(promiseToUploadFileToS3(req[fileName]));
-        } catch {
-            console.log(error);
+        } catch (error) {
+            console.log(
+                "Error during file resize or file promise creation:",
+                error
+            );
+            res.status(500).toJSON(error);
         }
     });
 
@@ -46,7 +55,7 @@ export function filesToUpload(req, res) {
 // PRIVATE FUNCTIONS
 
 /**
- * @desc Creates a connection to S3 storage and uploads file
+ * @desc Creates a connection to S3 storage, resizes file and uploads it
  * @param file -  {data: - file buffer, mimetype: - type of file being sent}
  * @returns promise
  * @access private
@@ -59,14 +68,24 @@ async function promiseToUploadFileToS3(file) {
         region: process.env.AWS_REGION
     });
 
-    //Where you want to store your file
-    const params = {
-        Bucket: process.env.AWS_IMAGES_BUCKET,
-        Key: uuidv4(),
-        Body: file.data,
-        ContentType: file.mimetype,
-        ACL: "public-read"
-    };
+    let params = null;
+    await sharp(file["data"])
+        .resize(NEW_WIDTH, NEW_HEIGHT, {
+            fit: "inside",
+            withoutEnlargement: true
+        })
+        .toFormat("png", {})
+        .toBuffer()
+        .then(outputBuffer => {
+            file.data = outputBuffer;
+            params = {
+                Bucket: process.env.AWS_IMAGES_BUCKET,
+                Key: uuidv4(),
+                Body: file.data,
+                ContentType: file.mimetype,
+                ACL: "public-read"
+            };
+        });
 
     //Executes the upload - returns resolve or reject depending on what happened
     return await new Promise((resolve, reject) => {

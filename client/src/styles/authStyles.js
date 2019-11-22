@@ -8,10 +8,13 @@ export const authStyles = theme => ({
         fontWeight: "600"
     },
     container: {
-        transform: "translate(-50%, -50%)",
-        position: "absolute",
-        left: "50%",
-        top: "50%"
+        [theme.breakpoints.up("sm")]: {
+            transform: "translate(-50%, -50%)",
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            flex: "50%"
+        }
     },
     item: {
         minHeight: "100vh",
@@ -45,10 +48,12 @@ export const authStyles = theme => ({
             marginLeft: "10px"
         },
         [theme.breakpoints.down("sm")]: {
-            flex: 1
+            flex: "50%"
         }
     },
-    signupBtn: {
-        marginTop: "8px"
+    demoBtn: {
+        [theme.breakpoints.down("sm")]: {
+            flex: "80%" // increase space to accomodate longer text
+        }
     }
 });

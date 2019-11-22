@@ -5,7 +5,7 @@
 import { describe } from "mocha";
 
 const expect = require("chai").expect;
-const validateOnLogin = require("../validation/login");
+import { validateLoginInput as validateOnLogin } from "../validation/login";
 
 describe("Login data is validated", function() {
     it("should be valid if all fields provided", function(done) {

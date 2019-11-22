@@ -3,19 +3,39 @@ import ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { createStore, applyMiddleware, combineReducers } from "redux";
 import thunkMiddleware from "redux-thunk";
-import { createLogger } from "redux-logger";
-import { userReducer, usersReducer, pollsReducer } from "./reducers";
+import {
+    userReducer,
+    usersReducer,
+    pollsReducer,
+    snackbarReducer,
+    friendsDrawerReducer
+} from "./reducers";
 import "./index.css";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
 
 // monitor app with the Logger Middleware:
-const logger = createLogger();
+// const logger = createLogger();
 
 // use middleware between action and reducer:
-const appReducer = combineReducers({ userReducer, usersReducer, pollsReducer });
+const appReducer = combineReducers({
+    userReducer,
+    usersReducer,
+    pollsReducer,
+    snackbarReducer,
+    friendsDrawerReducer
+});
 
-const store = createStore(appReducer, applyMiddleware(thunkMiddleware, logger));
+const middlewares = [thunkMiddleware];
+
+if (process.env.NODE_ENV === "development") {
+    const { logger } = require("redux-logger");
+
+    // monitor app with the Logger Middleware:
+    middlewares.push(logger);
+}
+
+const store = createStore(appReducer, applyMiddleware(...middlewares));
 
 ReactDOM.render(
     <Provider store={store}>

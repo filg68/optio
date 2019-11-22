@@ -6,7 +6,7 @@ const isEmpty = require("is-empty");
     friends: [id1, id2, id3]
 */
 
-module.exports = function validateFriendListInput(data) {
+export function validateFriendListInput(data) {
     let errors = {};
 
     // Title check
@@ -23,4 +23,4 @@ module.exports = function validateFriendListInput(data) {
         errors,
         isValid: isEmpty(errors)
     };
-};
+}

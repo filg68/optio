@@ -9,14 +9,12 @@
 
 //To create for production set process.env.NODE_ENV='production'
 //process.env.NODE_ENV = "production";
-
-require("../config/db-connect");
 const mongoose = require("mongoose");
+require("../config/db-connect");
 
 // Application modules  and other configuration items
 const startData = require("./startdata");
-const names = startData.usernames;
-const avatars = startData.avatars;
+const cleanData = require("./sampleData").cleanData();
 const pollImages = startData.pollImages;
 const pollTitles = startData.pollTitles;
 const listTitles = startData.listTitles;
@@ -34,7 +32,7 @@ const DEMO_PASSWORD =
     "passwordpurpossefullyvisibletoallowdemouseraccesswithoutcreatingunneccessarybackdoor";
 
 //Constants
-const NO_OF_USERS = 50;
+//const NO_OF_USERS = 50;
 const MAX_NO_OF_ADORNMENTS = 5; //Used in determining # of lists/polls to create/user
 const MAX_NO_OF_FRIENDS_PER_LIST = 5;
 const POLL_PERCENTAGE = 4; // 0 = 100%, 4 = 50%, 9 = 0%
@@ -43,12 +41,19 @@ const POLL_PERCENTAGE = 4; // 0 = 100%, 4 = 50%, 9 = 0%
 import axios from "axios";
 
 async function seedDb() {
+    //Instruction messages
+    console.log(
+        "!!!!IMPORTANT!!!!\nMake sure your server is connected to the appropriate database before starting." +
+            "  Uses local " +
+            "instance of server to execute register requests!\n"
+    );
+
     //drop the database
     console.log(`!!WARNING!! Dropping database ${mongoose.connection.host}`);
     try {
         await mongoose.connection.dropDatabase();
         console.log("\n*****Database dropped*****\n");
-        const userIds = await createUsers(NO_OF_USERS);
+        const userIds = await createUsers();
         await addAvatarImages(userIds);
         const friendsLists = await addFriendLists(userIds);
         await addPolls(userIds, friendsLists);
@@ -111,7 +116,8 @@ async function addPolls(userIds, friendsLists) {
                     friendsLists[id][
                         Math.floor(Math.random() * friendsLists[id].length)
                     ],
-                votes: [0, 0]
+                votes: [0, 0],
+                complete: false
             });
             const newPromise = newPoll.save();
             newPolls[id] = newPoll._id;
@@ -215,12 +221,13 @@ async function addFriendLists(userIds) {
 
 async function addAvatarImages(userIds) {
     const promises = [];
-    let count = 0;
+    let avatarIndex = 0;
     userIds.forEach(id => {
         const newPromise = User.findByIdAndUpdate(id, {
-            avatar: avatars[Math.floor(Math.random() * 9)]
+            avatar: cleanData[avatarIndex].avatar
         }).exec();
         promises.push(newPromise);
+        avatarIndex += 1;
     });
     await Promise.all(promises)
         .then(results => {
@@ -229,44 +236,32 @@ async function addAvatarImages(userIds) {
         .catch(err => console.log("****ERROR ADDING AVATARS\n", err));
 }
 
-async function createUsers(noOfUsers) {
+async function createUsers() {
     //Will create users in multiples of 10
     const newUserIds = [];
     const promises = [];
-    let noOfLoops = Math.max(1, Math.floor(noOfUsers / 10));
-    for (let i = 0; i < noOfLoops; i++) {
-        names.forEach(name => {
-            let newUser = {
-                name: name.split(" ")[0] + String(i) + " " + name.split(" ")[1],
-                email: `${name.split(" ")[0].toLowerCase()}${String(
-                    i
-                )}@mail.com`,
-                password: config.app.samplePassword,
-                password2: config.app.samplePassword
-            };
+    cleanData.forEach(user => {
+        let newUser = {
+            name: user.fullName,
+            email: user.fullName !== "Demo User" ? user.email : DEMO_EMAIL,
+            password:
+                user.fullName !== "Demo User"
+                    ? config.app.samplePassword
+                    : DEMO_PASSWORD,
+            password2:
+                user.fullName !== "Demo User"
+                    ? config.app.samplePassword
+                    : DEMO_PASSWORD
+        };
 
-            const newPromise = axios.post(
-                "http://localhost:3001/api/users/register",
-                newUser
-            );
-            promises.push(newPromise);
-        });
-    }
+        const newPromise = axios.post(
+            "http://localhost:3001/api/users/register",
+            newUser
+        );
+        promises.push(newPromise);
+    });
 
-    // Create demo user
-    let demoUser = {
-        name: "Demo User",
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-        password2: DEMO_PASSWORD
-    };
-
-    const newPromise = axios.post(
-        "http://localhost:3001/api/users/register",
-        demoUser
-    );
-    promises.push(newPromise);
-
+    // Execute all the requests
     await Promise.all(promises)
         .then(results => {
             results.forEach(result => {
@@ -275,7 +270,9 @@ async function createUsers(noOfUsers) {
                 newUserIds.push(decoded.id);
             });
         })
-        .catch(err => console.log("********* ERROR *********", err));
+        .catch(err => {
+            console.log("********* ERROR *********\n\n", err.request);
+        });
 
     console.log(`${newUserIds.length} user ids created`);
     return newUserIds;

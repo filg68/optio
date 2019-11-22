@@ -39,5 +39,26 @@ export const friendsPageStyles = theme => ({
         "&.MuiButton-text": {
             textTransform: "initial"
         }
+    },
+    box: {
+        [theme.breakpoints.down("md")]: {
+            padding: theme.spacing(3)
+        },
+        [theme.breakpoints.down("sm")]: {
+            padding: theme.spacing(1)
+        },
+        [theme.breakpoints.down("xs")]: {
+            padding: theme.spacing(0)
+        }
+    },
+    secondaryAction: {
+        [theme.breakpoints.down("sm")]: {
+            right: "5px"
+        }
+    },
+    avatar: {
+        [theme.breakpoints.down("xs")]: {
+            display: "none"
+        }
     }
 });

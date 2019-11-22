@@ -6,7 +6,6 @@ import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
 import Icon from "@material-ui/core/Icon";
 import IconButton from "@material-ui/core/IconButton";
-import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogActions from "@material-ui/core/DialogActions";
 import FormControl from "@material-ui/core/FormControl";
@@ -14,8 +13,11 @@ import FormHelperText from "@material-ui/core/FormHelperText";
 import MuiDialogTitle from "@material-ui/core/DialogTitle";
 import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
+import { ResponsiveDialog } from "./ResponsiveDialog";
 
 // App components
+
+import { AdornedButton } from "./AdornedButton";
 
 // Utility Modules
 import { updateAvatar, updateUserData } from "../utils/editUserData";
@@ -50,16 +52,6 @@ const styles = theme => ({
         justifyContent: "center",
         paddingBottom: theme.spacing(4),
         paddingTop: theme.spacing(2)
-    },
-    item: {
-        paddingLeft: "6px",
-        borderBottom: "1px solid rgba(0, 0, 0, 0.12)"
-    },
-    button: {
-        padding: "4px 8px",
-        "&.MuiButton-text": {
-            textTransform: "initial"
-        }
     },
     bigAvatar: {
         display: "inline-flex",
@@ -115,6 +107,7 @@ class EditProfileDialog extends Component {
             newFile: "",
             target: TARGET_AVATAR,
             saveIsDisabled: true,
+            saving: false,
             errors: {}
         };
     }
@@ -126,11 +119,13 @@ class EditProfileDialog extends Component {
             newEmail: this.props.email,
             target: TARGET_AVATAR,
             saveIsDisabled: true,
+            saving: false,
             errors: {}
         });
     };
 
     closeDialog = () => {
+        this.clearDialogData();
         this.props.toggleEditProfileDialog();
     };
 
@@ -182,60 +177,92 @@ class EditProfileDialog extends Component {
 
     onCancel = () => {
         // Added middle step in the event we need to add some closing routines
-        this.clearDialogData();
         this.closeDialog();
     };
 
     onSubmit = e => {
         e.preventDefault();
         const { newName, newEmail, newFile } = this.state;
-        const { userId, name, email, changeAvatar } = this.props;
+        const { userId, name, email, updateUserDataInState } = this.props;
 
         // disable the submit button to avoid duplicates
         this.disableSaveButton();
 
-        // array to store promises
-        const promises = [];
+        // set the loading flag to true
+        this.setState({ saving: true }, () => {
+            // array to store promises
+            const promises = [];
 
-        // create json object for name and e-mail changes
-        const newUserData = {};
-        if (newName !== name) {
-            newUserData["name"] = newName;
-        }
-        if (newEmail !== email) {
-            newUserData["email"] = newEmail;
-        }
-        if (!isEmpty(newUserData)) {
-            // add userId to query
-            newUserData["userId"] = userId;
-            promises.push(updateUserData(newUserData));
-        }
+            // create json object for name and e-mail changes
+            const newUserData = {};
+            if (newName !== name) {
+                newUserData["name"] = newName;
+            }
+            if (newEmail !== email) {
+                newUserData["email"] = newEmail;
+            }
+            if (!isEmpty(newUserData)) {
+                // add userId to query
+                newUserData["userId"] = userId;
+                promises.push(
+                    updateUserData(newUserData, response => {
+                        // use redux action to update user details in global state:
+                        if (newUserData.name) {
+                            updateUserDataInState({
+                                target: "name",
+                                newData: newName
+                            });
+                        }
 
-        // create FormData object for file uploads
-        if (newFile) {
-            const formData = new FormData();
-            formData.append("userId", userId);
-            formData.append("target", TARGET_AVATAR);
-            formData.append("newFile", newFile, newFile.name);
-            promises.push(
-                updateAvatar(formData, response => {
-                    this.setState({ newAvatar: response.data.avatarUrl });
-                    changeAvatar(response.data.avatarUrl);
+                        if (newUserData.email) {
+                            updateUserDataInState({
+                                target: "email",
+                                newData: newEmail
+                            });
+                        }
+                    })
+                );
+            }
+
+            // create FormData object for file uploads
+            if (newFile) {
+                const formData = new FormData();
+                formData.append("userId", userId);
+                formData.append("target", TARGET_AVATAR);
+                formData.append("newFile", newFile, newFile.name);
+                promises.push(
+                    updateAvatar(formData, response => {
+                        // use redux action to update avatar in global state:
+                        updateUserDataInState({
+                            target: "avatar",
+                            newData: response.data.avatarUrl
+                        });
+                    })
+                );
+            }
+
+            // replace current avatar and close dialog:
+            // this.props.changeAvatar(response.data.data);
+            Promise.all(promises)
+                .then(value => {
+                    setTimeout(() => {
+                        this.closeDialog();
+                        this.props.toggleSnackbar({
+                            action: "open",
+                            message: "Your profile was successfully updated!"
+                        });
+                    }, 800);
                 })
-            );
-        }
-
-        // replace current avatar and close dialog:
-        //this.props.changeAvatar(response.data.data);
-        Promise.all(promises)
-            .then(value => {
-                this.closeDialog();
-            })
-            .catch(err => {
-                // TODO - how do we alert the user that there was a problem
-                this.closeDialog();
-                console.log(err);
-            });
+                .catch(err => {
+                    console.log(err);
+                    this.setState({
+                        errors: {
+                            error:
+                                "Something went wrong. Please try again later."
+                        }
+                    });
+                });
+        });
     };
 
     revokeUrl = e => {
@@ -245,26 +272,23 @@ class EditProfileDialog extends Component {
     };
 
     render() {
-        const { classes } = this.props;
+        const { classes, editProfileDialogIsOpen } = this.props;
         const {
             errors,
             newName,
             newEmail,
             newAvatar,
-            saveIsDisabled
+            saveIsDisabled,
+            saving
         } = this.state;
 
         return (
             <div>
-                <Dialog
-                    fullWidth
-                    maxWidth="xs"
-                    onClose={this.props.toggleEditProfileDialog}
+                <ResponsiveDialog
+                    onClose={this.closeDialog}
                     aria-labelledby="edit-profile"
-                    open={this.props.editProfileDialogIsOpen}>
-                    <DialogTitle
-                        id="edit-profile"
-                        onClose={this.props.toggleEditProfileDialog}>
+                    open={editProfileDialogIsOpen}>
+                    <DialogTitle id="edit-profile" onClose={this.closeDialog}>
                         Edit Profile
                     </DialogTitle>
                     <form noValidate onSubmit={this.onSubmit}>
@@ -291,7 +315,14 @@ class EditProfileDialog extends Component {
                                     className={classes.bigInput}
                                     onChange={this.handleAvatarChange}
                                 />
+                                <Typography
+                                    align="center"
+                                    variant="caption"
+                                    className="center">
+                                    (Click image to edit)
+                                </Typography>
                             </FormControl>
+
                             <FormControl fullWidth>
                                 <Typography
                                     variant="subtitle1"
@@ -333,32 +364,32 @@ class EditProfileDialog extends Component {
                                     error
                                     id="email-error"
                                     className={classes.error}>
-                                    {errors.email}
+                                    {errors.email || errors.error}
                                 </FormHelperText>
                             </FormControl>
                         </DialogContent>
-
                         <DialogActions className={classes.action}>
-                            <Button
+                            <AdornedButton
+                                aria-label="submit profile changes"
+                                loading={saving}
                                 type="submit"
                                 variant="contained"
                                 size="small"
                                 disabled={saveIsDisabled}
                                 color="secondary">
                                 Save
-                            </Button>
+                            </AdornedButton>
                             <Button
                                 type="button"
                                 onClick={this.onCancel}
                                 variant="contained"
                                 size="small"
-                                disabled={false}
                                 color="primary">
                                 Cancel
                             </Button>
                         </DialogActions>
                     </form>
-                </Dialog>
+                </ResponsiveDialog>
             </div>
         );
     }

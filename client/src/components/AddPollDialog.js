@@ -1,26 +1,24 @@
 import React, { Component } from "react";
 import axios from "axios";
 import { withStyles } from "@material-ui/core/styles";
-import PollSnackbar from "./PollSnackbar";
-import {
-    Button,
-    IconButton,
-    Dialog,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Typography,
-    FormControl,
-    FormHelperText,
-    Select,
-    Icon,
-    Grid
-} from "@material-ui/core";
-
+import Button from "@material-ui/core/Button";
+import IconButton from "@material-ui/core/IconButton";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogActions from "@material-ui/core/DialogActions";
+import TextField from "@material-ui/core/TextField";
+import Typography from "@material-ui/core/Typography";
+import FormControl from "@material-ui/core/FormControl";
+import FormHelperText from "@material-ui/core/FormHelperText";
+import Select from "@material-ui/core/Select";
+import Icon from "@material-ui/core/Icon";
+import Grid from "@material-ui/core/Grid";
 import MuiDialogTitle from "@material-ui/core/DialogTitle";
-import { FileDrop } from "./FileDrop";
 import MenuItem from "@material-ui/core/MenuItem";
 import Input from "@material-ui/core/Input";
+
+import { FileDrop } from "./FileDrop";
+import { AdornedButton } from "./AdornedButton";
+import { ResponsiveDialog } from "./ResponsiveDialog";
 
 const styles = theme => ({
     root: {
@@ -51,12 +49,6 @@ const styles = theme => ({
     item: {
         paddingLeft: "6px",
         borderBottom: "1px solid rgba(0, 0, 0, 0.12)"
-    },
-    button: {
-        padding: "4px 8px",
-        "&.MuiButton-text": {
-            textTransform: "initial"
-        }
     }
 });
 
@@ -91,8 +83,7 @@ class AddPollDialog extends Component {
             sendToList: "",
             target: "poll_images",
             buttonIsDisabled: false,
-            errors: {},
-            snackbarIsOpen: false
+            errors: {}
         };
     }
 
@@ -121,18 +112,12 @@ class AddPollDialog extends Component {
 
     handleSelectChange = e => {
         this.setState({ sendToList: e.target.value });
-    };
-
-    openSnackbar = () => {
-        this.setState({ snackbarIsOpen: true });
-    };
-
-    closeSnackbar = (event, reason) => {
-        if (reason === "clickaway") {
-            return;
-        }
-
-        this.setState({ snackbarIsOpen: false });
+        //the select list value is set to a string of the form
+        //"list._id list.title list.friends.length" in order to be able to display the list title
+        //in the select input field -- this is a limitation imposed by the React
+        //component.  Need to extract the id from the sendToList component when
+        //saving it.  This change was made in order to add the list name to the
+        //poll card.
     };
 
     onSubmit = e => {
@@ -160,7 +145,7 @@ class AddPollDialog extends Component {
             formData.append("title", title);
             formData.append("image1", image1);
             formData.append("image2", image2);
-            formData.append("sendToList", sendToList);
+            formData.append("sendToList", sendToList.split(" ")[0]);
             formData.append("target", "poll_images");
 
             axios
@@ -174,11 +159,20 @@ class AddPollDialog extends Component {
                         return;
                     }
 
-                    // add new poll to Profile and close dialog:
-                    this.props.addNewPoll(response.data.data);
+                    // add the list title and voter counts to the returned data
+                    response.data.newPoll.sendToList = {
+                        _id: sendToList.split(" ")[0],
+                        title: sendToList.split(" ")[1],
+                        voterCount: sendToList.split(" ")[2]
+                    };
+                    // add new poll to Profile and close dialog
+                    this.props.addNewPoll(response.data.newPoll);
                     this.closeDialog();
                     // open snackbar with success message:
-                    this.openSnackbar();
+                    this.props.toggleSnackbar({
+                        action: "open",
+                        message: "A new poll was successfully created!"
+                    });
                 })
                 .catch(err => {
                     console.log(err);
@@ -203,17 +197,12 @@ class AddPollDialog extends Component {
 
     render() {
         const { classes, lists, hideButton } = this.props;
-        const {
-            errors,
-            sendToList,
-            title,
-            buttonIsDisabled,
-            snackbarIsOpen
-        } = this.state;
+        const { errors, sendToList, title, buttonIsDisabled } = this.state;
 
         return (
             <div>
                 <Button
+                    aria-label="create poll button"
                     onClick={this.props.togglePollDialog}
                     variant="contained"
                     color="primary"
@@ -224,9 +213,7 @@ class AddPollDialog extends Component {
                     }}>
                     Create poll
                 </Button>
-                <Dialog
-                    fullWidth
-                    maxWidth="xs"
+                <ResponsiveDialog
                     onClose={this.closeDialog}
                     aria-labelledby="create-poll"
                     open={this.props.pollDialogIsOpen}>
@@ -254,7 +241,7 @@ class AddPollDialog extends Component {
                                 />
                                 <FormHelperText
                                     error
-                                    id="poll-question-errir"
+                                    id="poll-question-error"
                                     className={classes.error}>
                                     {errors.title}
                                 </FormHelperText>
@@ -276,7 +263,7 @@ class AddPollDialog extends Component {
                                         return (
                                             <MenuItem
                                                 key={list._id}
-                                                value={list._id}
+                                                value={`${list._id} ${list.title} ${list.friends.length}`}
                                                 className={classes.item}>
                                                 {list.title}
                                             </MenuItem>
@@ -320,21 +307,19 @@ class AddPollDialog extends Component {
                         </DialogContent>
 
                         <DialogActions className={classes.action}>
-                            <Button
+                            <AdornedButton
+                                aria-label="create poll"
+                                loading={this.state.buttonIsDisabled}
                                 type="submit"
                                 variant="contained"
                                 size="small"
                                 disabled={buttonIsDisabled}
                                 color="primary">
                                 Create
-                            </Button>
+                            </AdornedButton>
                         </DialogActions>
                     </form>
-                </Dialog>
-                <PollSnackbar
-                    snackbarIsOpen={snackbarIsOpen}
-                    closeSnackbar={this.closeSnackbar}
-                />
+                </ResponsiveDialog>
             </div>
         );
     }

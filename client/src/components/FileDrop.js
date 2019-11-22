@@ -3,38 +3,28 @@ import { useDropzone } from "react-dropzone";
 import makeStyles from "@material-ui/core/styles/makeStyles";
 import initialDropzoneImage from "../images/dropzone300.png";
 
-const thumb = {
-    display: "inline-flex",
-    marginLeft: "auto",
-    marginRight: "auto",
-    width: "180px",
-    height: "180px",
-    textAlign: "center",
-    padding: 4,
-    boxSizing: "border-box"
-};
-
-const thumbInner = {
-    display: "flex",
-    minWidth: 0,
-    overflow: "hidden"
-};
-
-const img = {
-    display: "block",
-    width: "auto",
-    height: "100%"
-};
-
 const useStyles = makeStyles({
-    root: {
-        width: "100%",
-        maxWidth: 180
+    thumb: {
+        display: "inline-flex",
+        marginLeft: "auto",
+        marginRight: "auto",
+        textAlign: "center",
+        padding: 4,
+        boxSizing: "border-box"
+    },
+    thumbInner: {
+        display: "flex",
+        minWidth: 0,
+        overflow: "hidden"
+    },
+    img: {
+        display: "block",
+        maxWidth: "100%",
+        height: "auto",
+        maxHeight: "200px" // specify exact number to prevent stretching in Safari
     },
     thumbsContainer: {
         display: "block",
-        height: "180px",
-        width: "180px",
         marginLeft: "auto",
         marginRight: "auto"
     }
@@ -70,9 +60,13 @@ export function FileDrop(props) {
         <section>
             <div className={classes.thumbsContainer} {...getRootProps()}>
                 <input {...getInputProps()} />
-                <div style={thumb} key={option}>
-                    <div style={thumbInner}>
-                        <img src={dropzoneImage} style={img} alt="option" />
+                <div className={classes.thumb} key={option}>
+                    <div className={classes.thumbInner}>
+                        <img
+                            src={dropzoneImage}
+                            className={classes.img}
+                            alt="option"
+                        />
                     </div>
                 </div>
             </div>

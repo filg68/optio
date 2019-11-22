@@ -13,7 +13,7 @@ console.log(
 
 const production = {
     app: {
-        port: parseInt(process.env.DEV_APP_PORT) || 3001,
+        port: parseInt(process.env.PORT) || 3001,
         secretOrKey: process.env.PASSWORD_CRYPTO_KEY,
         samplePassword: process.env.SAMPLE_USER_PWD
     },
@@ -29,7 +29,7 @@ const production = {
 
 const dev = {
     app: {
-        port: parseInt(process.env.DEV_APP_PORT) || 3001,
+        port: parseInt(process.env.PORT) || 3001,
         secretOrKey: process.env.PASSWORD_CRYPTO_KEY,
         samplePassword: process.env.SAMPLE_USER_PWD
     },
@@ -43,7 +43,7 @@ const dev = {
 
 const test = {
     app: {
-        port: parseInt(process.env.TEST_APP_PORT) || 3001,
+        port: parseInt(process.env.PORT) || 3001,
         secretOrKey: process.env.PASSWORD_CRYPTO_KEY,
         samplePassword: process.env.SAMPLE_USER_PWD
     },

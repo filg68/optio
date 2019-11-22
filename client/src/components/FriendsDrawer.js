@@ -1,62 +1,15 @@
 import React from "react";
 import clsx from "clsx";
-import renderAvatar from "../utils/renderAvatar";
-import { Link as RouterLink } from "react-router-dom";
-import { makeStyles, withStyles, useTheme } from "@material-ui/core/styles";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 import Drawer from "@material-ui/core/Drawer";
-import List from "@material-ui/core/List";
-import ListSubheader from "@material-ui/core/ListSubheader";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import ListItemAvatar from "@material-ui/core/ListItemAvatar";
-import Badge from "@material-ui/core/Badge";
 import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
 import Icon from "@material-ui/core/Icon";
-import Link from "@material-ui/core/Link";
 import Hidden from "@material-ui/core/Hidden";
-
-const StyledBadge = withStyles(theme => ({
-    badge: {
-        top: "5px",
-        right: "5px",
-        backgroundColor: "#44b700",
-        boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-        "&::after": {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            animation: "$ripple 1.2s infinite ease-in-out",
-            border: "1px solid #44b700",
-            content: '""'
-        }
-    },
-    "@keyframes ripple": {
-        "0%": {
-            transform: "scale(.8)",
-            opacity: 1
-        },
-        "100%": {
-            transform: "scale(2.4)",
-            opacity: 0
-        }
-    }
-}))(Badge);
+import FriendsList from "./FriendsList";
+import { socket } from "../utils/setSocketConnection";
 
 const useStyles = makeStyles(theme => ({
-    subtitle: {
-        fontWeight: "600",
-        transition: theme.transitions.create("font-size", {
-            easing: theme.transitions.easing.easeInOut,
-            duration: theme.transitions.duration.enteringScreen
-        })
-    },
-    collapsed: {
-        fontSize: "0.7rem"
-    },
     drawerPaper: {
         position: "relative",
         width: "240px",
@@ -65,7 +18,8 @@ const useStyles = makeStyles(theme => ({
             duration: theme.transitions.duration.enteringScreen
         }),
         height: "100vh",
-        whiteSpace: "normal"
+        whiteSpace: "nowrap" // prevent list item to stretch vertically
+        // if user name is too long
     },
     drawerPaperClose: {
         overflowX: "hidden",
@@ -76,9 +30,9 @@ const useStyles = makeStyles(theme => ({
         width: theme.spacing(7),
         [theme.breakpoints.up("xs")]: {
             width: "70px"
-        }
+        },
+        whiteSpace: "nowrap"
     },
-    toolbar: theme.mixins.toolbar,
     toolbarIcon: {
         display: "flex",
         alignItems: "center",
@@ -92,70 +46,59 @@ const useStyles = makeStyles(theme => ({
         [theme.breakpoints.up("xs")]: {
             padding: "20px"
         }
+    },
+    // the following styles fix the bug in Chrome with disappearing hr line:
+    divider: {
+        [theme.breakpoints.up("lg")]: {
+            height: "1.05px"
+        },
+        [theme.breakpoints.up("xl")]: {
+            height: "1.3px"
+        }
     }
 }));
 
 function FriendsDrawer(props) {
-    const {
-        drawerIsOpen,
-        toggleDrawer,
-        mobileDrawerIsOpen,
-        toggleMobileDrawer
-    } = props;
+    const { user, drawerIsOpen, toggleDrawer, mobileDrawerIsOpen } = props;
     const classes = useStyles();
     const theme = useTheme();
+    const [friends, setFriends] = React.useState([]);
 
-    const friendsList = (
-        <List
-            dense
-            component="nav"
-            aria-labelledby="friends-list-title"
-            subheader={
-                <ListSubheader
-                    className={clsx(
-                        classes.subtitle,
-                        !drawerIsOpen && classes.collapsed
-                    )}
-                    component="div"
-                    id="friends-list-title">
-                    Friends
-                </ListSubheader>
-            }>
-            {props.user.friends.map(friend => {
-                return (
-                    <Link
-                        key={friend._id}
-                        underline="none"
-                        component={RouterLink}
-                        to={{
-                            pathname: `/user/${friend._id}`,
-                            state: {
-                                user: friend,
-                                users: props.users
-                            }
-                        }}>
-                        <ListItem button>
-                            <ListItemAvatar>
-                                <StyledBadge
-                                    variant="dot"
-                                    overlap="circle"
-                                    color="secondary">
-                                    {renderAvatar(friend, classes)}
-                                </StyledBadge>
-                            </ListItemAvatar>
-                            <ListItemText primary={friend.name} />
-                        </ListItem>
-                    </Link>
-                );
-            })}
-        </List>
-    );
+    React.useEffect(() => {
+        // initialize friends array:
+        setFriends(props.user.friends);
+
+        socket.on("friends_changed", data => {
+            // update friends array in state if current user's friend is affected:
+            if (user._id === data.userId) {
+                setFriends(data.friends);
+            }
+        });
+
+        // listen to new users joining the app:
+        socket.on("user_joined", () => {
+            // request udpated friends array:
+            socket.emit("initial_friends", user._id);
+        });
+
+        // listen to users leaving the app:
+        socket.on("user_left", () => {
+            // request udpated friends array:
+            socket.emit("initial_friends", user._id);
+        });
+
+        // cancel event listening
+        return () => {
+            socket.off("user_joined");
+            socket.off("user_left");
+            socket.off("friends_changed");
+        };
+    }, [user._id, props.user.friends]);
 
     const mobileDrawer = (
         <>
-            <div className={classes.toolbar} />
             <Divider />
-            {friendsList}
+            <FriendsList drawerIsOpen={drawerIsOpen} friends={friends} />
         </>
     );
 
@@ -166,14 +109,14 @@ function FriendsDrawer(props) {
                     className={classes.arrowIcon}
                     color="inherit"
                     aria-label="open drawer"
-                    onClick={toggleDrawer}>
+                    onClick={() => toggleDrawer("drawerIsOpen")}>
                     <Icon>
                         {drawerIsOpen ? "chevron_left" : "chevron_right"}
                     </Icon>
                 </IconButton>
             </div>
-            <Divider />
-            {friendsList}
+            <Divider className={classes.divider} />
+            <FriendsList drawerIsOpen={drawerIsOpen} friends={friends} />
         </>
     );
 
@@ -187,7 +130,7 @@ function FriendsDrawer(props) {
                         paper: clsx(classes.drawerPaper)
                     }}
                     open={mobileDrawerIsOpen}
-                    onClose={toggleMobileDrawer}
+                    onClose={() => toggleDrawer("mobileDrawerIsOpen")}
                     ModalProps={{
                         keepMounted: true // Better open performance on mobile.
                     }}>

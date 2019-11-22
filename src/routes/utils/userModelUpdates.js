@@ -20,3 +20,23 @@ export async function updateUserAvatar(data, res) {
         return { status: 500, message: "Unable to save avatar image." };
     }
 }
+
+export async function setUserOnline(userId) {
+    try {
+        await User.findOneAndUpdate({ _id: userId }, { online: true });
+        return { status: 200, userId };
+    } catch (err) {
+        console.log(err);
+        return { status: 500, message: "Unable to change user status." };
+    }
+}
+
+export async function setUserOffline(userId) {
+    try {
+        await User.findOneAndUpdate({ _id: userId }, { online: false });
+        return { status: 200, userId };
+    } catch (err) {
+        console.log(err);
+        return { status: 500, message: "Unable to change user status." };
+    }
+}

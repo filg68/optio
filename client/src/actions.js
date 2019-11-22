@@ -8,7 +8,12 @@ import {
     REGISTER_VOTE_SUCCESS,
     GET_FRIENDS_POLLS_SUCCESS,
     CHANGE_FRIEND_STATUS_SUCCESS,
-    USER_DATA_LOADING
+    USER_DATA_LOADING,
+    UPDATE_VOTES,
+    UPDATE_USER_DATA,
+    TOGGLE_SNACKBAR,
+    RESET_FRIENDS_POLLS,
+    TOGGLE_DRAWER
 } from "./constants.js";
 
 import fetchDataAPI from "./api/fetchDataAPI";
@@ -131,5 +136,42 @@ export function apiRequestFailure(error) {
     return {
         type: API_REQUEST_FAILURE,
         error
+    };
+}
+
+export function updateVotes(pollId, votes) {
+    return {
+        type: UPDATE_VOTES,
+        pollId,
+        votes
+    };
+}
+
+export function updateUserDataInState(data) {
+    return {
+        type: UPDATE_USER_DATA,
+        target: data.target,
+        newData: data.newData
+    };
+}
+
+export function toggleSnackbar(data) {
+    return {
+        type: TOGGLE_SNACKBAR,
+        action: data.action,
+        message: data.message
+    };
+}
+
+export const resetFriendsPolls = () => {
+    return {
+        type: RESET_FRIENDS_POLLS
+    };
+};
+
+export function toggleDrawer(target) {
+    return {
+        type: TOGGLE_DRAWER,
+        target
     };
 }

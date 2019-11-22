@@ -1,29 +1,26 @@
 //users.js
-//Author - Fil - August 28, 2019
-//Inspiration - https://blog.bitsrc.io/build-a-login-auth-app-with-mern-stack-part-1-c405048e3669
 
 // Core packages to enable routing functionality
 const express = require("express");
 const router = express.Router();
 
-// Loads .env keys depending on environment in use
+// Loads .env keys needed for routing functions
 const keys = require("../../config/config");
+const SECRET = keys.app.secretOrKey;
 
 // Used to encrypt/decrypt password and for using jwt token
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 
 // LOAD VALIDATION FUNCTIONS
-const validateRegisterInput = require("../../validation/register");
-const validateLoginInput = require("../../validation/login");
-const validateFriendListInput = require("../../validation/friendList");
+import { validateRegisterInput } from "../../validation/register";
+import { validateLoginInput } from "../../validation/login";
+import { validateFriendListInput } from "../../validation/friendList";
 import { validateUserDataInput } from "../../validation/userData";
+import { createToken } from "../utils/routeAuthorization";
 
 // LOAD DATA MODELS
-
 const User = require("../../models/User");
 const FriendList = require("../../models/friendList");
-const Poll = require("../../models/Poll");
 
 // ROUTES
 /**
@@ -55,7 +52,16 @@ router.post("/register", (req, res) => {
                     newUser.password = hash;
                     newUser
                         .save()
-                        .then(user => createToken(user, res))
+                        .then(user =>
+                            createToken(
+                                {
+                                    id: user.id,
+                                    name: user.name
+                                },
+                                res,
+                                SECRET
+                            )
+                        )
                         .catch(err => console.log(err));
                 });
             });
@@ -92,7 +98,14 @@ router.post("/login", (req, res) => {
                 if (isMatch) {
                     // User matched
                     // Create JWT token and return via res.json
-                    createToken(user, res);
+                    createToken(
+                        {
+                            id: user.id,
+                            name: user.name
+                        },
+                        res,
+                        SECRET
+                    );
                 } else {
                     return res
                         .status(400)
@@ -154,7 +167,7 @@ router.post("/add_friend_list", (req, res) => {
                             .catch(err => {
                                 console.log("error: ", err);
                                 return res.status(500).json({
-                                    error: "Error updating the user list"
+                                    error: "Unable to create a new list"
                                 });
                             });
                     })
@@ -194,20 +207,37 @@ router.get("/", (req, res) => {
         });
 });
 
-// @route GET api/users/users
+// @route GET api/users/user/:id
 // @desc Get all information for a single user
 // @access Private
 router.get("/user/:id", (req, res) => {
     User.findById(req.params.id)
-        .populate("polls")
+        .populate({
+            path: "polls",
+            options: {
+                sort: {
+                    complete: "descending",
+                    createdAt: "descending"
+                }
+            },
+            populate: {
+                path: "sendToList",
+                select: "title"
+            }
+        })
         .populate({
             path: "lists",
+            options: {
+                sort: {
+                    updatedAt: "descending"
+                }
+            },
             populate: {
                 path: "friends",
                 select: "name avatar"
             } // select only name and avatar for each friend
         })
-        .populate("friends", "name _id avatar")
+        .populate("friends", "name _id avatar online")
         .then(result => {
             res.json(result);
         })
@@ -219,6 +249,10 @@ router.get("/user/:id", (req, res) => {
         });
 });
 
+// @route PATCH /
+// @desc Update User Data
+// @params req.body.userId, req.body.email, req.body.name
+// @access Private
 router.patch("/", (req, res) => {
     const { errors, isValid } = validateUserDataInput(req.body);
     const { userId, email, name } = req.body;
@@ -243,43 +277,5 @@ router.patch("/", (req, res) => {
             res.status(500).json(err);
         });
 });
-
-// UTILITY FUNCTIONS
-
-/**
- * @desc Creates a JWT token and returns it via callback provided
- * @params user - an instance of a users
- * @params res - call back function
- * @access Private
- */
-function createToken(user, res) {
-    // Create JWT Payload
-    const payload = {
-        id: user.id,
-        name: user.name
-    };
-
-    // Sign token
-    jwt.sign(
-        payload,
-        keys.app.secretOrKey,
-        {
-            expiresIn: 31556926 // 1 year in seconds
-        },
-        (err, token) => {
-            if (!err) {
-                res.json({
-                    status: 200,
-                    token: `Bearer ${token}`
-                });
-            } else {
-                res.json({
-                    status: 500,
-                    error: "Unable to generate token."
-                });
-            }
-        }
-    );
-}
 
 module.exports = router;

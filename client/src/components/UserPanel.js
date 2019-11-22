@@ -2,19 +2,19 @@ import React from "react";
 import AppNavbar from "../components/AppNavbar";
 import FriendsDrawer from "../components/FriendsDrawer";
 import { CssBaseline } from "@material-ui/core";
+import AppSnackbar from "./AppSnackbar";
 
 function UserPanel(props) {
-    const [drawerIsOpen, setDrawerIsOpen] = React.useState(true);
-    const [mobileDrawerIsOpen, setMobileDrawerIsOpen] = React.useState(false);
-    const { user, users } = props;
-
-    const toggleDrawer = () => {
-        setDrawerIsOpen(!drawerIsOpen);
-    };
-
-    const toggleMobileDrawer = () => {
-        setMobileDrawerIsOpen(!mobileDrawerIsOpen);
-    };
+    const {
+        user,
+        users,
+        toggleSnackbar,
+        snackbarIsOpen,
+        snackbarMessage,
+        toggleDrawer,
+        drawerIsOpen,
+        mobileDrawerIsOpen
+    } = props;
 
     return (
         <>
@@ -25,7 +25,8 @@ function UserPanel(props) {
                 logOut={props.logOut}
                 togglePollDialog={props.togglePollDialog}
                 toggleDrawer={toggleDrawer}
-                toggleMobileDrawer={toggleMobileDrawer}
+                updateUserDataInState={props.updateUserDataInState}
+                toggleSnackbar={toggleSnackbar}
             />
             <FriendsDrawer
                 user={user}
@@ -33,10 +34,14 @@ function UserPanel(props) {
                 drawerIsOpen={drawerIsOpen}
                 mobileDrawerIsOpen={mobileDrawerIsOpen}
                 toggleDrawer={toggleDrawer}
-                toggleMobileDrawer={toggleMobileDrawer}
+            />
+            <AppSnackbar
+                snackbarMessage={snackbarMessage}
+                snackbarIsOpen={snackbarIsOpen}
+                toggleSnackbar={toggleSnackbar}
             />
         </>
     );
 }
 
-export default UserPanel;
+export { UserPanel };
